@@ -173,6 +173,10 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 			fieldInfo := val.Type().Field(i)
 			fieldTag := fieldInfo.Tag.Get(_tag)
 
+			if !fieldInfo.IsExported() {
+				continue
+			}
+
 			var err error
 			if size, ok := lens[fieldInfo.Name]; ok {
 				err = decode(fieldVal, from, order, &size)
@@ -190,7 +194,7 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 		}
 
 	default:
-		fmt.Println("ignoring field:", val)
+		// ignore
 	}
 
 	return nil
