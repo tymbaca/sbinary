@@ -6,9 +6,9 @@ import (
 )
 
 type Marshaler interface {
-	MarshalBinary(w io.Writer, order binary.ByteOrder) error
+	MarshalBinary(w io.Writer, order binary.ByteOrder) (int, error)
 }
 
 type Unmarshaler interface {
-	UnmarshalBinary(r io.Reader, order binary.ByteOrder) error
+	UnmarshalBinary(r io.Reader, order binary.ByteOrder) (int, error)
 }

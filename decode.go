@@ -40,7 +40,7 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 		ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
 
 		if e, ok := ptr.Interface().(Unmarshaler); ok {
-			err := e.UnmarshalBinary(from, order)
+			_, err := e.UnmarshalBinary(from, order)
 			if err != nil {
 				return err
 			}

@@ -41,7 +41,8 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 		ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
 
 		if e, ok := ptr.Interface().(Marshaler); ok {
-			return e.MarshalBinary(into, order)
+			_, err := e.MarshalBinary(into, order)
+			return err
 		}
 	}
 
