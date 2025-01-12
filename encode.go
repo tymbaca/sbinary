@@ -36,14 +36,12 @@ func (e *Encoder) Encode(data any, order binary.ByteOrder) error {
 
 func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 	// Handle custom unmarshaler with reflection to ensure pointer
-	if val.Kind() == reflect.Struct {
-		ptr := reflect.New(val.Type()) // Create a pointer to the struct
-		ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
+	ptr := reflect.New(val.Type()) // Create a pointer to the struct
+	ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
 
-		if e, ok := ptr.Interface().(Marshaler); ok {
-			_, err := e.MarshalBinary(into, order)
-			return err
-		}
+	if e, ok := ptr.Interface().(Marshaler); ok {
+		_, err := e.MarshalBinary(into, order)
+		return err
 	}
 
 	switch val.Kind() {
@@ -87,6 +85,11 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 	case reflect.Struct:
 		for i := range val.NumField() {
 			fieldVal := val.Field(i)
+			// for debug purposes
+			fieldInfo := val.Type().Field(i)
+			fieldTag := fieldInfo.Tag.Get(_tag)
+			_ = fieldTag
+
 			err := encode(fieldVal, into, order)
 			if err != nil {
 				return fmt.Errorf("can't encode %v (%v): %w", fieldVal.Kind(), fieldVal, err)

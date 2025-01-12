@@ -34,20 +34,17 @@ func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
 }
 
 func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int) error {
-	// Handle custom unmarshaler with reflection to ensure pointer
-	if val.Kind() == reflect.Struct {
-		ptr := reflect.New(val.Type()) // Create a pointer to the struct
-		ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
+	ptr := reflect.New(val.Type()) // Create a pointer to the struct
+	ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
 
-		if e, ok := ptr.Interface().(Unmarshaler); ok {
-			_, err := e.UnmarshalBinary(from, order)
-			if err != nil {
-				return err
-			}
-
-			val.Set(ptr.Elem()) // Update the original value with the unmarshaled data
-			return nil
+	if e, ok := ptr.Interface().(Unmarshaler); ok {
+		_, err := e.UnmarshalBinary(from, order)
+		if err != nil {
+			return err
 		}
+
+		val.Set(ptr.Elem()) // Update the original value with the unmarshaled data
+		return nil
 	}
 
 	switch val.Kind() {

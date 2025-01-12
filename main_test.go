@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tymbaca/varint"
 )
 
 func TestEncodeDecode(t *testing.T) {
@@ -20,6 +21,7 @@ func TestEncodeDecode(t *testing.T) {
 			ShitSize:      10,
 			Shit:          []byte("1234567890"),
 		},
+		CustomInt: varint.Int32(777),
 		Custom: Custom{
 			Price:  124.5,
 			Active: true,
@@ -66,6 +68,7 @@ func BenchmarkEncodeDecode(b *testing.B) {
 type Request struct {
 	MessageSize uint32
 	Header      Header
+	CustomInt   varint.Int32
 	Custom      Custom
 }
 
@@ -87,26 +90,26 @@ type Custom struct {
 	Active bool
 }
 
-func (c *Custom) MarshalBinary(w io.Writer, order binary.ByteOrder) error {
+func (c *Custom) MarshalBinary(w io.Writer, order binary.ByteOrder) (int, error) {
 	if err := binary.Write(w, order, c.Price); err != nil {
-		return err
+		return 0, err
 	}
 
 	if err := binary.Write(w, order, c.Active); err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return 9, nil
 }
 
-func (c *Custom) UnmarshalBinary(r io.Reader, order binary.ByteOrder) error {
+func (c *Custom) UnmarshalBinary(r io.Reader, order binary.ByteOrder) (int, error) {
 	if err := binary.Read(r, order, &c.Price); err != nil {
-		return err
+		return 0, err
 	}
 
 	if err := binary.Read(r, order, &c.Active); err != nil {
-		return err
+		return 0, err
 	}
 
-	return nil
+	return 9, nil
 }
