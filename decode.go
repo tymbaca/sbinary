@@ -181,7 +181,7 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 				err = decode(fieldVal, from, order, nil)
 			}
 			if err != nil {
-				return fmt.Errorf("can't decode %v (%v): %w", fieldVal.Kind(), fieldVal, err)
+				return fmt.Errorf("can't decode field %v (%v): %w", fieldInfo.Name, fieldVal.Type().Name(), err)
 			}
 
 			// if current field specifies the length of another field - save it into the map
