@@ -92,7 +92,7 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 
 			err := encode(fieldVal, into, order)
 			if err != nil {
-				return fmt.Errorf("can't encode %v (%v): %w", fieldVal.Kind(), fieldVal, err)
+				return fmt.Errorf("can't encode field %v (%v): %w", fieldInfo.Name, fieldVal.Type().Name(), err)
 			}
 		}
 
