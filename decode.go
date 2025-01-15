@@ -122,6 +122,24 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 
 		// todo float
 
+	case reflect.String:
+		// todo avoid code duplication
+		if size == nil {
+			return fmt.Errorf("size of slice not specified")
+		}
+		if *size <= 0 {
+			return nil // maybe set to 0 len slice if len is 0?
+		}
+
+		buf := make([]byte, *size)
+		_, err := io.ReadFull(from, buf)
+		if err != nil {
+			return fmt.Errorf("can't decode a slice: %w", err)
+		}
+
+		val.SetString(string(buf))
+		return nil
+
 	case reflect.Slice:
 		if val.Type().Elem().Kind() != reflect.Uint8 {
 			return fmt.Errorf("non-bytes slices are not supported")
@@ -143,22 +161,19 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 		val.SetBytes(buf)
 		return nil
 
-	case reflect.String:
-		// todo avoid code duplication
-		if size == nil {
-			return fmt.Errorf("size of slice not specified")
-		}
-		if *size <= 0 {
-			return nil // maybe set to 0 len slice if len is 0?
+	case reflect.Array:
+		if val.Type().Elem().Kind() != reflect.Uint8 {
+			return fmt.Errorf("non-bytes arrays are not supported")
 		}
 
-		buf := make([]byte, *size)
+		arrSize := val.Type().Len()
+		buf := make([]byte, arrSize)
 		_, err := io.ReadFull(from, buf)
 		if err != nil {
-			return fmt.Errorf("can't decode a slice: %w", err)
+			return fmt.Errorf("can't decode an array: %w", err)
 		}
 
-		val.SetString(string(buf))
+		reflect.Copy(val, reflect.ValueOf(buf))
 		return nil
 
 	case reflect.Struct:

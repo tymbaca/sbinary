@@ -71,6 +71,10 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 
 		// todo float
 
+	case reflect.String:
+		_, err := into.Write([]byte(val.String()))
+		return err
+
 	case reflect.Slice:
 		elemKind := val.Type().Elem().Kind()
 		if elemKind == reflect.Uint8 {
@@ -78,9 +82,13 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 			return err
 		}
 
-	case reflect.String:
-		_, err := into.Write([]byte(val.String()))
-		return err
+	case reflect.Array:
+		elemKind := val.Type().Elem().Kind()
+		if elemKind == reflect.Uint8 {
+			sliceVal := arrayToSlice(val)
+			_, err := into.Write(sliceVal.Bytes())
+			return err
+		}
 
 	case reflect.Struct:
 		for i := range val.NumField() {
@@ -113,4 +121,11 @@ func writeInt[I int8 | int16 | int32 | int64](into io.Writer, order binary.ByteO
 func writeUint[U uint8 | uint16 | uint32 | uint64](into io.Writer, order binary.ByteOrder, val reflect.Value) error {
 	u := U(val.Uint())
 	return binary.Write(into, order, u)
+}
+
+func arrayToSlice(arr reflect.Value) reflect.Value {
+	ptr := reflect.New(arr.Type()).Elem()
+	ptr.Set(arr)
+
+	return ptr.Slice(0, ptr.Len())
 }

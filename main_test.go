@@ -20,6 +20,7 @@ func TestEncodeDecode(t *testing.T) {
 			ClientID:      String{Len: 5, Data: "hello"},
 			ShitSize:      10,
 			Shit:          []byte("1234567890"),
+			Array:         [4]byte{12, 42, 1, 0},
 		},
 		CustomInt: varint.Int32(777),
 		Custom: Custom{
@@ -49,6 +50,7 @@ func BenchmarkEncodeDecode(b *testing.B) {
 			ClientID:      String{Len: 5, Data: "hello"},
 			ShitSize:      10,
 			Shit:          []byte("1234567890"),
+			Array:         [4]byte{12, 42, 1, 0},
 		},
 		Custom: Custom{
 			Price:  124.5,
@@ -73,11 +75,12 @@ type Request struct {
 }
 
 type Header struct {
-	Version       byte
+	Version       byte // TODO: `ignore` tag
 	CorrelationID int32
 	ClientID      String
 	ShitSize      uint64 `bin:"lenof:Shit"`
 	Shit          []byte
+	Array         [4]byte
 }
 
 type String struct {
