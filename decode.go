@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const _tag = "bin"
+const _tag = "sbin"
 
 type Decoder struct {
 	r io.Reader
@@ -185,7 +185,7 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 			fieldInfo := val.Type().Field(i)
 			fieldTag := fieldInfo.Tag.Get(_tag)
 
-			if !fieldInfo.IsExported() {
+			if fieldTag == "-" || !fieldInfo.IsExported() {
 				continue
 			}
 

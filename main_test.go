@@ -21,6 +21,8 @@ func TestEncodeDecode(t *testing.T) {
 			ShitSize:      10,
 			Shit:          []byte("1234567890"),
 			Array:         [4]byte{12, 42, 1, 0},
+			Ignored:       111,
+			alsoIgnored:   222,
 		},
 		CustomInt: varint.Int32(777),
 		Custom: Custom{
@@ -38,6 +40,9 @@ func TestEncodeDecode(t *testing.T) {
 	require.NotNil(t, NewDecoder(buf).Decode(reqDecoded, binary.BigEndian)) // not pointer
 	require.Nil(t, NewDecoder(buf).Decode(&reqDecoded, binary.BigEndian))
 
+	req.Header.Ignored = 0 // it will be ignored in decoded value
+	req.Header.alsoIgnored = 0
+
 	require.Equal(t, req, reqDecoded)
 }
 
@@ -51,6 +56,7 @@ func BenchmarkEncodeDecode(b *testing.B) {
 			ShitSize:      10,
 			Shit:          []byte("1234567890"),
 			Array:         [4]byte{12, 42, 1, 0},
+			Ignored:       64,
 		},
 		Custom: Custom{
 			Price:  124.5,
@@ -75,16 +81,18 @@ type Request struct {
 }
 
 type Header struct {
-	Version       byte // TODO: `ignore` tag
+	Version       byte
 	CorrelationID int32
 	ClientID      String
-	ShitSize      uint64 `bin:"lenof:Shit"`
+	ShitSize      uint64 `sbin:"lenof:Shit"`
 	Shit          []byte
 	Array         [4]byte
+	Ignored       int64 `sbin:"-"`
+	alsoIgnored   int64
 }
 
 type String struct {
-	Len  int32 `bin:"lenof:Data"`
+	Len  int32 `sbin:"lenof:Data"`
 	Data string
 }
 
