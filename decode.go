@@ -37,16 +37,12 @@ var unmarshalerType = reflect.TypeFor[Unmarshaler]()
 
 func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int) error {
 	if reflect.PointerTo(val.Type()).Implements(unmarshalerType) {
-		ptr := reflect.New(val.Type()) // Create a pointer to the struct
-		ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
-
-		v := ptr.Interface().(Unmarshaler)
+		v := val.Addr().Interface().(Unmarshaler)
 		_, err := v.UnmarshalBinary(from, order)
 		if err != nil {
 			return err
 		}
 
-		val.Set(ptr.Elem()) // Update the original value with the unmarshaled data
 		return nil
 	}
 
