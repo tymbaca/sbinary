@@ -33,12 +33,16 @@ func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
 	return decode(val, d.r, order, nil)
 }
 
+var unmarshalerType = reflect.TypeFor[Unmarshaler]()
+
 func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int) error {
 	ptr := reflect.New(val.Type()) // Create a pointer to the struct
 	ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
+	// val.Type().Implements()
 
-	if e, ok := ptr.Interface().(Unmarshaler); ok {
-		_, err := e.UnmarshalBinary(from, order)
+	switch v := ptr.Interface().(type) {
+	case Unmarshaler:
+		_, err := v.UnmarshalBinary(from, order)
 		if err != nil {
 			return err
 		}
@@ -141,15 +145,15 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 		return nil
 
 	case reflect.Slice:
-		if val.Type().Elem().Kind() != reflect.Uint8 {
-			return fmt.Errorf("non-bytes slices are not supported")
-		}
-
 		if size == nil {
 			return fmt.Errorf("size of slice not specified")
 		}
 		if *size <= 0 {
 			return nil // maybe set to 0 len slice if len is 0?
+		}
+
+		if val.Type().Elem().Kind() != reflect.Uint8 {
+			return decodeSliceOrArray(val, from, order, *size)
 		}
 
 		buf := make([]byte, *size)
@@ -162,11 +166,11 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 		return nil
 
 	case reflect.Array:
+		arrSize := val.Type().Len()
 		if val.Type().Elem().Kind() != reflect.Uint8 {
-			return fmt.Errorf("non-bytes arrays are not supported")
+			return decodeSliceOrArray(val, from, order, arrSize)
 		}
 
-		arrSize := val.Type().Len()
 		buf := make([]byte, arrSize)
 		_, err := io.ReadFull(from, buf)
 		if err != nil {
@@ -209,6 +213,21 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 		// ignore
 	}
 
+	return nil
+}
+
+func decodeSliceOrArray(val reflect.Value, from io.Reader, order binary.ByteOrder, size int) error {
+	if val.Type().Kind() == reflect.Slice {
+		val.Grow(size)
+		val.SetLen(size)
+	}
+
+	for i := range size {
+		item := val.Index(i)
+		if err := decode(item, from, order, nil); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

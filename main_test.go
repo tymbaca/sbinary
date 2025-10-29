@@ -3,7 +3,6 @@ package sbinary
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"io"
 	"testing"
 
@@ -12,38 +11,65 @@ import (
 )
 
 func TestEncodeDecode(t *testing.T) {
-	req := Request{
-		MessageSize: 52362,
-		Header: Header{
-			Version:       3,
-			CorrelationID: 2,
-			ClientID:      String{Len: 5, Data: "hello"},
-			ShitSize:      10,
-			Shit:          []byte("1234567890"),
-			Array:         [4]byte{12, 42, 1, 0},
-			Ignored:       111,
-			alsoIgnored:   222,
-		},
-		CustomInt: varint.Int32(777),
-		Custom: Custom{
-			Price:  124.5,
-			Active: true,
-		},
+	t.Run("slice", func(t *testing.T) {
+		test(t, Slice[String]{Len: 3, Data: []String{
+			{Len: 5, Data: "hello"},
+			{Len: 4, Data: "hell"},
+			{Len: 3, Data: "hel"},
+		}}, nil)
+	})
+	t.Run("array", func(t *testing.T) {
+		test(t, [3]String{
+			{Len: 5, Data: "hello"},
+			{Len: 4, Data: "hell"},
+			{Len: 3, Data: "hel"},
+		}, nil)
+	})
+	t.Run("full", func(t *testing.T) {
+		req := Request{
+			MessageSize: 52362,
+			Header: Header{
+				Version:       3,
+				CorrelationID: 2,
+				ClientID:      String{Len: 5, Data: "hello"},
+				ServerNames: Slice[String]{Len: 3, Data: []String{
+					{Len: 5, Data: "hello"},
+					{Len: 4, Data: "hell"},
+					{Len: 3, Data: "hel"},
+				}},
+				ShitSize:    10,
+				Shit:        []byte("1234567890"),
+				Array:       [4]byte{12, 42, 1, 0},
+				Ignored:     111,
+				alsoIgnored: 222,
+			},
+			CustomInt: varint.Int32(777),
+			Custom: Custom{
+				Price:  124.5,
+				Active: true,
+			},
+		}
+
+		test(t, req, func(req *Request) {
+			req.Header.Ignored = 0 // it will be ignored in decoded value
+			req.Header.alsoIgnored = 0
+		})
+	})
+}
+
+func test[T any](t *testing.T, input T, middle func(v *T)) {
+	buf := bytes.NewBuffer(nil)
+	require.Nil(t, NewEncoder(buf).Encode(input, binary.BigEndian))
+
+	var inputDecoded T
+	require.NotNil(t, NewDecoder(buf).Decode(inputDecoded, binary.BigEndian)) // not pointer
+	require.Nil(t, NewDecoder(buf).Decode(&inputDecoded, binary.BigEndian))
+
+	if middle != nil {
+		middle(&input)
 	}
 
-	buf := bytes.NewBuffer(nil)
-	require.Nil(t, NewEncoder(buf).Encode(req, binary.BigEndian))
-
-	fmt.Println(buf.Bytes())
-
-	var reqDecoded Request
-	require.NotNil(t, NewDecoder(buf).Decode(reqDecoded, binary.BigEndian)) // not pointer
-	require.Nil(t, NewDecoder(buf).Decode(&reqDecoded, binary.BigEndian))
-
-	req.Header.Ignored = 0 // it will be ignored in decoded value
-	req.Header.alsoIgnored = 0
-
-	require.Equal(t, req, reqDecoded)
+	require.Equal(t, input, inputDecoded)
 }
 
 func BenchmarkEncodeDecode(b *testing.B) {
@@ -53,10 +79,15 @@ func BenchmarkEncodeDecode(b *testing.B) {
 			Version:       3,
 			CorrelationID: 2,
 			ClientID:      String{Len: 5, Data: "hello"},
-			ShitSize:      10,
-			Shit:          []byte("1234567890"),
-			Array:         [4]byte{12, 42, 1, 0},
-			Ignored:       64,
+			ServerNames: Slice[String]{Len: 3, Data: []String{
+				{Len: 5, Data: "hello"},
+				{Len: 4, Data: "hell"},
+				{Len: 3, Data: "hel"},
+			}},
+			ShitSize: 10,
+			Shit:     []byte("1234567890"),
+			Array:    [4]byte{12, 42, 1, 0},
+			Ignored:  64,
 		},
 		Custom: Custom{
 			Price:  124.5,
@@ -84,6 +115,7 @@ type Header struct {
 	Version       byte
 	CorrelationID int32
 	ClientID      String
+	ServerNames   Slice[String]
 	ShitSize      uint64 `sbin:"lenof:Shit"`
 	Shit          []byte
 	Array         [4]byte
@@ -92,8 +124,13 @@ type Header struct {
 }
 
 type String struct {
-	Len  int32 `sbin:"lenof:Data"`
+	Len  uint32 `sbin:"lenof:Data"`
 	Data string
+}
+
+type Slice[T any] struct {
+	Len  uint32 `sbin:"lenof:Data"`
+	Data []T
 }
 
 type Custom struct {

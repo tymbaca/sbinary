@@ -39,8 +39,9 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 	ptr := reflect.New(val.Type()) // Create a pointer to the struct
 	ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
 
-	if e, ok := ptr.Interface().(Marshaler); ok {
-		_, err := e.MarshalBinary(into, order)
+	switch v := ptr.Interface().(type) {
+	case Marshaler:
+		_, err := v.MarshalBinary(into, order)
 		return err
 	}
 
@@ -82,6 +83,8 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 			return err
 		}
 
+		return encodeSliceOrArray(val, into, order)
+
 	case reflect.Array:
 		elemKind := val.Type().Elem().Kind()
 		if elemKind == reflect.Uint8 {
@@ -89,6 +92,8 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 			_, err := into.Write(sliceVal.Bytes())
 			return err
 		}
+
+		return encodeSliceOrArray(val, into, order)
 
 	case reflect.Struct:
 		for i := range val.NumField() {
@@ -112,6 +117,17 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 
 	default:
 		fmt.Println("ignoring field:", val) // TODO: remove
+	}
+
+	return nil
+}
+
+func encodeSliceOrArray(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
+	for i := 0; i < val.Len(); i++ {
+		item := val.Index(i)
+		if err := encode(item, into, order); err != nil {
+			return err
+		}
 	}
 
 	return nil
