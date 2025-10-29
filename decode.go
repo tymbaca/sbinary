@@ -36,12 +36,11 @@ func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
 var unmarshalerType = reflect.TypeFor[Unmarshaler]()
 
 func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int) error {
-	ptr := reflect.New(val.Type()) // Create a pointer to the struct
-	ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
-	// val.Type().Implements()
+	if reflect.PointerTo(val.Type()).Implements(unmarshalerType) {
+		ptr := reflect.New(val.Type()) // Create a pointer to the struct
+		ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
 
-	switch v := ptr.Interface().(type) {
-	case Unmarshaler:
+		v := ptr.Interface().(Unmarshaler)
 		_, err := v.UnmarshalBinary(from, order)
 		if err != nil {
 			return err
