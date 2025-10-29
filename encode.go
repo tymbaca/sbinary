@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strings"
 	"unsafe"
 )
 
@@ -34,15 +35,20 @@ func (e *Encoder) Encode(data any, order binary.ByteOrder) error {
 	return encode(val, e.w, order)
 }
 
-func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
-	// Handle custom unmarshaler with reflection to ensure pointer
-	ptr := reflect.New(val.Type()) // Create a pointer to the struct
-	ptr.Elem().Set(val)            // Set the value of the new pointer to the current struct
+var marshalerType = reflect.TypeFor[Marshaler]()
 
-	switch v := ptr.Interface().(type) {
-	case Marshaler:
-		_, err := v.MarshalBinary(into, order)
+func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
+	valType := val.Type()
+	if reflect.PointerTo(valType).Implements(marshalerType) {
+		// Handle custom unmarshaler with reflection to ensure pointer
+		ptr := reflect.New(valType) // Create a pointer to the struct
+		ptr.Elem().Set(val)         // Set the value of the new pointer to the current struct
+		_, err := ptr.Interface().(Marshaler).MarshalBinary(into, order)
 		return err
+	}
+
+	if strings.Contains(val.Type().Name(), "Custom") {
+		panic("custom didn't match iface")
 	}
 
 	switch val.Kind() {
