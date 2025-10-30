@@ -36,7 +36,7 @@ func NewEncoder(w io.Writer) *Encoder {
 // Encode encodes obj. For numeric fields it uses provided byte order.
 // It can be called multiple times.
 //
-// See [Decoder.Decode] commend for slices or strings fields.
+// See [Decoder.Decode] comment for more info.
 // When encoding, nil slice and zero-length slice are encoded
 // in the same way, no bytes will be written.
 func (e *Encoder) Encode(data any, order binary.ByteOrder) error {
@@ -45,16 +45,15 @@ func (e *Encoder) Encode(data any, order binary.ByteOrder) error {
 	return encode(val, e.w, order)
 }
 
-var marshalerType = reflect.TypeFor[Marshaler]()
+var customEncoderType = reflect.TypeFor[CustomEncoder]()
 
 func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 	valType := val.Type()
-	if reflect.PointerTo(valType).Implements(marshalerType) {
+	if reflect.PointerTo(valType).Implements(customEncoderType) {
 		// Handle custom unmarshaler with reflection to ensure pointer
 		ptr := reflect.New(valType) // Create a pointer to the struct
 		ptr.Elem().Set(val)         // Set the value of the new pointer to the current struct
-		_, err := ptr.Interface().(Marshaler).MarshalBinary(into, order)
-		return err
+		return ptr.Interface().(CustomEncoder).Encode(into, order)
 	}
 
 	if strings.Contains(val.Type().Name(), "Custom") {

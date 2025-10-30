@@ -5,10 +5,10 @@ import (
 	"io"
 )
 
-type Marshaler interface {
-	MarshalBinary(w io.Writer, order binary.ByteOrder) (int, error)
+type CustomEncoder interface {
+	Encode(w io.Writer, order binary.ByteOrder) error
 }
 
-type Unmarshaler interface {
-	UnmarshalBinary(r io.Reader, order binary.ByteOrder) (int, error)
+type CustomDecoder interface {
+	Decode(r io.Reader, order binary.ByteOrder) error
 }

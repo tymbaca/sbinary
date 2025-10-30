@@ -34,6 +34,9 @@ func NewDecoder(r io.Reader) *Decoder {
 // Decode decodes obj. For numberic fields it uses provided byte order.
 // It can be called multiple times.
 //
+// Currently only numeric types, slices, strings, arrays and structures are supported.
+// For other types and any custom logic you can implement [CustomEncoder] and [CustomDecoder].
+//
 // When decoding slices or strings, there must be another integer field (any signed or
 // unsigned type) before slice field with tag `sbin:"lenof:<TargetField>"`, otherwise
 // error will be returned, e.g.:
@@ -73,9 +76,8 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 	// TODO: check for unexpected EOF
 
 	switch v := val.Addr().Interface().(type) {
-	case Unmarshaler:
-		_, err := v.UnmarshalBinary(from, order)
-		return err
+	case CustomDecoder:
+		return v.Decode(from, order)
 	}
 
 	switch val.Kind() {
