@@ -10,25 +10,33 @@ import (
 	"unsafe"
 )
 
-func Marshal(data any, order binary.ByteOrder) ([]byte, error) {
+// Marshal marshals obj into bytes using provided byte order.
+// See [Encoder.Encode] for details.
+func Marshal(obj any, order binary.ByteOrder) ([]byte, error) {
 	buf := bytes.NewBuffer(nil)
-	buf.Grow(int(unsafe.Sizeof(data)))
+	buf.Grow(int(unsafe.Sizeof(obj)))
 
-	if err := NewEncoder(buf).Encode(data, order); err != nil {
+	if err := NewEncoder(buf).Encode(obj, order); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
 }
 
+// Encoder encodes incoming bytes into Go objects.
 type Encoder struct {
 	w io.Writer
 }
 
+// NewEncoder created an [Encoder] that will use w for the output.
 func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{w: w}
 }
 
+// Encode encodes obj. For numeric fields it uses provided byte order.
+// It can be called multiple times.
+//
+// See [Decoder.Decode] commend for slices or strings fields.
 func (e *Encoder) Encode(data any, order binary.ByteOrder) error {
 	val := reflect.ValueOf(data)
 
@@ -120,9 +128,6 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 		}
 
 		return nil
-
-	default:
-		fmt.Println("ignoring field:", val) // TODO: remove
 	}
 
 	return nil

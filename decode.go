@@ -1,6 +1,7 @@
 package sbinary
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -10,14 +11,41 @@ import (
 
 const _tag = "sbin"
 
+// Unmarshal unmarshals data using provided byte order and stores result into pointer obj.
+// See [Decoder.Decode] for details.
+func Unmarshal(data []byte, obj any, order binary.ByteOrder) error {
+	if err := NewDecoder(bytes.NewReader(data)).Decode(obj, order); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Decoder decodes incoming bytes into Go objects.
 type Decoder struct {
 	r io.Reader
 }
 
+// NewDecoder created a [Decoder] that will use r for the input.
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r: r}
 }
 
+// Decode decodes obj. For numberic fields it uses provided byte order.
+// It can be called multiple times.
+//
+// When decoding slices or strings, there must be another integer field (any signed or
+// unsigned type) before slice field with tag `sbin:"lenof:<TargetField>"`, e.g.:
+//
+//	type String struct {
+//		Len uint32 `sbin:"lenof:Data"`
+//		Data string
+//	}
+//
+//	type Slice[T any] struct {
+//		Len  uint32 `sbin:"lenof:Data"`
+//		Data []T
+//	}
 func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
 	val := reflect.ValueOf(obj)
 	if val.Kind() != reflect.Pointer {
@@ -25,7 +53,7 @@ func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
 	}
 
 	if val.IsNil() {
-		return fmt.Errorf("obj must be a pointer to initialized variable (not nil), got: %v", val.Kind())
+		return fmt.Errorf("obj must be a valid pointer, got nil")
 	}
 
 	// dereference
@@ -34,6 +62,8 @@ func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
 }
 
 func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int) error {
+	// TODO: check for unexpected EOF
+
 	switch v := val.Addr().Interface().(type) {
 	case Unmarshaler:
 		_, err := v.UnmarshalBinary(from, order)
@@ -138,6 +168,7 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 			return fmt.Errorf("size of slice not specified")
 		}
 		if *size <= 0 {
+			val.Set(reflect.MakeSlice(val.Type(), 0, 0))
 			return nil // maybe set to 0 len slice if len is 0?
 		}
 

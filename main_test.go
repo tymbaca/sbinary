@@ -17,6 +17,7 @@ func TestEncodeDecode(t *testing.T) {
 			{Len: 4, Data: "hell"},
 			{Len: 3, Data: "hel"},
 		}}, nil)
+		test(t, Slice[String]{Len: 0, Data: []String{}}, nil)
 	})
 	t.Run("array", func(t *testing.T) {
 		test(t, [3]String{
