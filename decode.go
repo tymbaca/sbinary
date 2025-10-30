@@ -34,7 +34,7 @@ func NewDecoder(r io.Reader) *Decoder {
 // Decode decodes obj. For numberic fields it uses provided byte order.
 // It can be called multiple times.
 //
-// Currently only numeric types, slices, strings, arrays and structures are supported.
+// Currently only slices, arrays, strings, numeric types (including bools) and structures are supported.
 // For other types and any custom logic you can implement [CustomEncoder] and [CustomDecoder].
 //
 // Use of int and uint types are not recommended, because the sending and receiving machines can
