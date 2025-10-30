@@ -37,11 +37,12 @@ func TestEncodeDecode(t *testing.T) {
 					{Len: 4, Data: "hell"},
 					{Len: 3, Data: "hel"},
 				}},
-				ShitSize:    10,
-				Shit:        []byte("1234567890"),
-				Array:       [4]byte{12, 42, 1, 0},
-				Ignored:     111,
-				alsoIgnored: 222,
+				ShitSize:     10,
+				Shit:         []byte("1234567890"),
+				Array:        [4]byte{12, 42, 1, 0},
+				Ignored:      111,
+				alsoIgnored:  222,
+				alsoIgnored2: &Inner{Val: 20},
 			},
 			CustomInt: varint.Int32(777),
 			Custom: Custom{
@@ -53,6 +54,7 @@ func TestEncodeDecode(t *testing.T) {
 		test(t, req, func(req *Request) {
 			req.Header.Ignored = 0 // it will be ignored in decoded value
 			req.Header.alsoIgnored = 0
+			req.Header.alsoIgnored2 = nil
 		})
 	})
 }
@@ -121,6 +123,12 @@ type Header struct {
 	Array         [4]byte
 	Ignored       int64 `sbin:"-"`
 	alsoIgnored   int64
+	alsoIgnored2  *Inner
+	InnerSet      bool
+}
+
+type Inner struct {
+	Val int
 }
 
 type String struct {
