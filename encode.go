@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strings"
 	"unsafe"
 )
 
@@ -56,36 +55,41 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 		return ptr.Interface().(CustomEncoder).Encode(into, order)
 	}
 
-	if strings.Contains(val.Type().Name(), "Custom") {
-		panic("custom didn't match iface")
-	}
-
 	switch val.Kind() {
+	case reflect.Bool:
+		return writeNumeric[bool](into, order, val)
+	case reflect.Int:
+		if val.Type().Size() == 4 {
+			return writeNumeric[int32](into, order, reflect.ValueOf(int32(val.Int())))
+		} else {
+			return writeNumeric[int64](into, order, reflect.ValueOf(int64(val.Int())))
+		}
+	case reflect.Uint:
+		if val.Type().Size() == 4 {
+			return writeNumeric[uint32](into, order, reflect.ValueOf(uint32(val.Uint())))
+		} else {
+			return writeNumeric[uint64](into, order, reflect.ValueOf(uint64(val.Uint())))
+		}
 	case reflect.Int8:
-		return writeInt[int8](into, order, val)
-
+		return writeNumeric[int8](into, order, val)
 	case reflect.Int16:
-		return writeInt[int16](into, order, val)
-
+		return writeNumeric[int16](into, order, val)
 	case reflect.Int32:
-		return writeInt[int32](into, order, val)
-
+		return writeNumeric[int32](into, order, val)
 	case reflect.Int64:
-		return writeInt[int64](into, order, val)
-
+		return writeNumeric[int64](into, order, val)
 	case reflect.Uint8:
-		return writeUint[uint8](into, order, val)
-
+		return writeNumeric[uint8](into, order, val)
 	case reflect.Uint16:
-		return writeUint[uint16](into, order, val)
-
+		return writeNumeric[uint16](into, order, val)
 	case reflect.Uint32:
-		return writeUint[uint32](into, order, val)
-
+		return writeNumeric[uint32](into, order, val)
 	case reflect.Uint64:
-		return writeUint[uint64](into, order, val)
-
-		// todo float
+		return writeNumeric[uint64](into, order, val)
+	case reflect.Float32:
+		return writeNumeric[float32](into, order, val)
+	case reflect.Float64:
+		return writeNumeric[float64](into, order, val)
 
 	case reflect.String:
 		_, err := into.Write([]byte(val.String()))
@@ -145,14 +149,8 @@ func encodeSliceOrArray(val reflect.Value, into io.Writer, order binary.ByteOrde
 	return nil
 }
 
-func writeInt[I int8 | int16 | int32 | int64](into io.Writer, order binary.ByteOrder, val reflect.Value) error {
-	i := I(val.Int())
-	return binary.Write(into, order, i)
-}
-
-func writeUint[U uint8 | uint16 | uint32 | uint64](into io.Writer, order binary.ByteOrder, val reflect.Value) error {
-	u := U(val.Uint())
-	return binary.Write(into, order, u)
+func writeNumeric[T fixedNumeric](into io.Writer, order binary.ByteOrder, val reflect.Value) error {
+	return binary.Write(into, order, val.Interface())
 }
 
 func arrayToSlice(arr reflect.Value) reflect.Value {

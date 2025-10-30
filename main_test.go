@@ -27,6 +27,60 @@ func TestEncodeDecode(t *testing.T) {
 		}, nil)
 		test(t, [0]String{}, nil)
 	})
+	t.Run("custom", func(t *testing.T) {
+		test(t, Custom{Optional: ptr(777.0)}, nil)
+		test(t, Custom{Optional: nil}, nil)
+	})
+	t.Run("numeric", func(t *testing.T) {
+		test(t, Numerics{
+			Int:   -1,
+			Int8:  -2,
+			Int16: -3,
+			Int32: -4,
+			Int64: -5,
+		}, nil)
+		test(t, Numerics{
+			Int:   1,
+			Int8:  2,
+			Int16: 3,
+			Int32: 4,
+			Int64: 5,
+		}, nil)
+		test(t, Numerics{
+			Int:   0,
+			Int8:  0,
+			Int16: 0,
+			Int32: 0,
+			Int64: 0,
+		}, nil)
+		test(t, Numerics{
+			Uint:   1,
+			Uint8:  2,
+			Uint16: 3,
+			Uint32: 4,
+			Uint64: 5,
+		}, nil)
+		test(t, Numerics{
+			Uint:   0,
+			Uint8:  0,
+			Uint16: 0,
+			Uint32: 0,
+			Uint64: 0,
+		}, nil)
+		test(t, Numerics{
+			Float32: 11.1111,
+			Float64: 12.1234,
+		}, nil)
+		test(t, Numerics{
+			Float32: -11.1111,
+			Float64: -12.1234,
+		}, nil)
+		test(t, Numerics{
+			Float32: 0,
+			Float64: 0,
+		}, nil)
+	})
+
 	t.Run("full", func(t *testing.T) {
 		req := Request{
 			MessageSize: 52362,
@@ -34,6 +88,21 @@ func TestEncodeDecode(t *testing.T) {
 				Version:       3,
 				CorrelationID: 2,
 				ClientID:      String{Len: 5, Data: "hello"},
+				Numerics: Numerics{
+					Int:     -1,
+					Int8:    -2,
+					Int16:   -3,
+					Int32:   -4,
+					Int64:   -5,
+					Uint:    6,
+					Uint8:   7,
+					Uint16:  8,
+					Uint32:  9,
+					Uint64:  10,
+					Float32: 11.11,
+					Float64: 12.12,
+				},
+				Bool: true,
 				ServerNames: Slice[String]{Len: 3, Data: []String{
 					{Len: 5, Data: "hello"},
 					{Len: 4, Data: "hell"},
@@ -48,8 +117,7 @@ func TestEncodeDecode(t *testing.T) {
 			},
 			CustomInt: varint.Int32(777),
 			Custom: Custom{
-				Price:  124.5,
-				Active: true,
+				Optional: ptr(124.5),
 			},
 		}
 
@@ -94,8 +162,7 @@ func BenchmarkEncodeDecode(b *testing.B) {
 			Ignored:  64,
 		},
 		Custom: Custom{
-			Price:  124.5,
-			Active: true,
+			Optional: ptr(124.5),
 		},
 	}
 
@@ -110,15 +177,17 @@ func BenchmarkEncodeDecode(b *testing.B) {
 
 type Request struct {
 	MessageSize uint32
+	Custom      Custom
 	Header      Header
 	CustomInt   varint.Int32
-	Custom      Custom
 }
 
 type Header struct {
 	Version       byte
 	CorrelationID int32
 	ClientID      String
+	Numerics      Numerics
+	Bool          bool
 	ServerNames   Slice[String]
 	ShitSize      uint64 `sbin:"lenof:Shit"`
 	Shit          []byte
@@ -126,7 +195,21 @@ type Header struct {
 	Ignored       int64 `sbin:"-"`
 	alsoIgnored   int64
 	alsoIgnored2  *Inner
-	InnerSet      bool
+}
+
+type Numerics struct {
+	Int     int
+	Int8    int8
+	Int16   int16
+	Int32   int32
+	Int64   int64
+	Uint    uint
+	Uint8   uint8
+	Uint16  uint16
+	Uint32  uint32
+	Uint64  uint64
+	Float32 float32
+	Float64 float64
 }
 
 type Inner struct {
@@ -144,30 +227,38 @@ type Slice[T any] struct {
 }
 
 type Custom struct {
-	Price  float64
-	Active bool
+	Optional *float64
 }
 
-func (c Custom) MarshalBinary(w io.Writer, order binary.ByteOrder) (int, error) {
-	if err := binary.Write(w, order, c.Price); err != nil {
-		return 0, err
+func (c Custom) Encode(w io.Writer, order binary.ByteOrder) error {
+	if c.Optional != nil {
+		if err := binary.Write(w, order, true); err != nil {
+			return err
+		}
+
+		return binary.Write(w, order, *c.Optional)
 	}
 
-	if err := binary.Write(w, order, c.Active); err != nil {
-		return 0, err
-	}
-
-	return 9, nil
+	return binary.Write(w, order, false)
 }
 
-func (c *Custom) UnmarshalBinary(r io.Reader, order binary.ByteOrder) (int, error) {
-	if err := binary.Read(r, order, &c.Price); err != nil {
-		return 0, err
+func (c *Custom) Decode(r io.Reader, order binary.ByteOrder) error {
+	var set bool
+	if err := binary.Read(r, order, &set); err != nil {
+		return err
 	}
 
-	if err := binary.Read(r, order, &c.Active); err != nil {
-		return 0, err
+	if set {
+		var v float64
+		if err := binary.Read(r, order, &v); err != nil {
+			return err
+		}
+		c.Optional = &v
 	}
 
-	return 9, nil
+	return nil
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }

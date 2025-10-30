@@ -37,6 +37,9 @@ func NewDecoder(r io.Reader) *Decoder {
 // Currently only numeric types, slices, strings, arrays and structures are supported.
 // For other types and any custom logic you can implement [CustomEncoder] and [CustomDecoder].
 //
+// Use of int and uint types are not recommended, because the sending and receiving machines can
+// have different architecture (32 or 64 bit). Better use fixed-bit types, like uin32, int64, etc.
+//
 // When decoding slices or strings, there must be another integer field (any signed or
 // unsigned type) before slice field with tag `sbin:"lenof:<TargetField>"`, otherwise
 // error will be returned, e.g.:
@@ -81,82 +84,42 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 	}
 
 	switch val.Kind() {
+	case reflect.Bool:
+		return decodeNumeric[bool](val, from, order)
+	case reflect.Int:
+		if val.Type().Size() == 4 {
+			return decodeNumeric[int32](val, from, order)
+		} else {
+			return decodeNumeric[int64](val, from, order)
+		}
+	case reflect.Uint:
+		if val.Type().Size() == 4 {
+			return decodeNumeric[uint32](val, from, order)
+		} else {
+			return decodeNumeric[uint64](val, from, order)
+		}
 	case reflect.Int8:
-		i, err := readInt[int8](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetInt(int64(i))
-		return nil
-
+		return decodeNumeric[int8](val, from, order)
 	case reflect.Int16:
-		i, err := readInt[int16](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetInt(int64(i))
-		return nil
-
+		return decodeNumeric[int16](val, from, order)
 	case reflect.Int32:
-		i, err := readInt[int32](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetInt(int64(i))
-		return nil
-
+		return decodeNumeric[int32](val, from, order)
 	case reflect.Int64:
-		i, err := readInt[int64](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetInt(int64(i))
-		return nil
-
+		return decodeNumeric[int64](val, from, order)
 	case reflect.Uint8:
-		i, err := readUint[uint8](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetUint(uint64(i))
-		return nil
-
+		return decodeNumeric[uint8](val, from, order)
 	case reflect.Uint16:
-		i, err := readUint[uint16](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetUint(uint64(i))
-		return nil
-
+		return decodeNumeric[uint16](val, from, order)
 	case reflect.Uint32:
-		i, err := readUint[uint32](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetUint(uint64(i))
-		return nil
-
+		return decodeNumeric[uint32](val, from, order)
 	case reflect.Uint64:
-		i, err := readUint[uint64](from, order)
-		if err != nil {
-			return err
-		}
-
-		val.SetUint(uint64(i))
-		return nil
-
-		// todo float
+		return decodeNumeric[uint64](val, from, order)
+	case reflect.Float32:
+		return decodeNumeric[float32](val, from, order)
+	case reflect.Float64:
+		return decodeNumeric[float64](val, from, order)
 
 	case reflect.String:
-		// todo avoid code duplication
 		if size == nil {
 			return fmt.Errorf("size of slice not specified")
 		}
@@ -280,20 +243,28 @@ func sizeOfAnotherField(val reflect.Value, tag string) (string, int, bool) {
 	return targetField, size, true
 }
 
-func readInt[I int8 | int16 | int32 | int64](r io.Reader, order binary.ByteOrder) (I, error) {
-	var i I
-	if err := binary.Read(r, order, &i); err != nil {
-		return i, fmt.Errorf("can't read int: %w", err)
-	}
-
-	return i, nil
+type fixedNumeric interface {
+	int8 | int16 | int32 | int64 |
+		uint8 | uint16 | uint32 | uint64 |
+		float32 | float64 |
+		bool
 }
 
-func readUint[U uint8 | uint16 | uint32 | uint64](r io.Reader, order binary.ByteOrder) (U, error) {
-	var u U
-	if err := binary.Read(r, order, &u); err != nil {
-		return u, fmt.Errorf("can't read uint: %w", err)
+func decodeNumeric[T fixedNumeric](val reflect.Value, r io.Reader, order binary.ByteOrder) error {
+	i, err := readNumeric[T](r, order)
+	if err != nil {
+		return err
 	}
 
-	return u, nil
+	val.Set(reflect.ValueOf(i).Convert(val.Type()))
+	return nil
+}
+
+func readNumeric[T fixedNumeric](r io.Reader, order binary.ByteOrder) (T, error) {
+	var v T
+	if err := binary.Read(r, order, &v); err != nil {
+		return v, fmt.Errorf("can't read %T: %w", v, err)
+	}
+
+	return v, nil
 }
