@@ -25,6 +25,7 @@ func TestEncodeDecode(t *testing.T) {
 			{Len: 4, Data: "hell"},
 			{Len: 3, Data: "hel"},
 		}, nil)
+		test(t, [0]String{}, nil)
 	})
 	t.Run("full", func(t *testing.T) {
 		req := Request{
@@ -147,7 +148,7 @@ type Custom struct {
 	Active bool
 }
 
-func (c *Custom) MarshalBinary(w io.Writer, order binary.ByteOrder) (int, error) {
+func (c Custom) MarshalBinary(w io.Writer, order binary.ByteOrder) (int, error) {
 	if err := binary.Write(w, order, c.Price); err != nil {
 		return 0, err
 	}
