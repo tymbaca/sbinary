@@ -35,17 +35,25 @@ func NewDecoder(r io.Reader) *Decoder {
 // It can be called multiple times.
 //
 // When decoding slices or strings, there must be another integer field (any signed or
-// unsigned type) before slice field with tag `sbin:"lenof:<TargetField>"`, e.g.:
+// unsigned type) before slice field with tag `sbin:"lenof:<TargetField>"`, otherwise
+// error will be returned, e.g.:
 //
 //	type String struct {
 //		Len uint32 `sbin:"lenof:Data"`
 //		Data string
 //	}
 //
+//	type StringSlice struct {
+//		Len  uint32 `sbin:"lenof:Data"`
+//		Data []String
+//	}
+//
 //	type Slice[T any] struct {
 //		Len  uint32 `sbin:"lenof:Data"`
 //		Data []T
 //	}
+//
+// For slices, if length field is zero, then the data field will be set to zero-length slice (not nil).
 func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
 	val := reflect.ValueOf(obj)
 	if val.Kind() != reflect.Pointer {

@@ -37,6 +37,8 @@ func NewEncoder(w io.Writer) *Encoder {
 // It can be called multiple times.
 //
 // See [Decoder.Decode] commend for slices or strings fields.
+// When encoding, nil slice and zero-length slice are encoded
+// in the same way, no bytes will be written.
 func (e *Encoder) Encode(data any, order binary.ByteOrder) error {
 	val := reflect.ValueOf(data)
 
