@@ -124,12 +124,13 @@ func TestEncodeDecode(t *testing.T) {
 					{Len: 4, Data: "hell"},
 					{Len: 3, Data: "hel"},
 				}},
-				ShitSize:    10,
-				Shit:        []byte("1234567890"),
-				Array:       [4]byte{12, 42, 1, 0},
-				Ignored:     111,
-				alsoIgnored: 222,
-				Pointer:     &Inner{Val: 20},
+				ShitSize:        10,
+				Shit:            []byte("1234567890"),
+				Array:           [4]byte{12, 42, 1, 0},
+				Pointer:         &Inner{Val: 20},
+				TagIgnored:      111,
+				InterfaceIgnore: &Inner{Val: 30},
+				privateIgnored:  222,
 			},
 			CustomInt: varint.Int32(777),
 			Custom: Custom{
@@ -138,8 +139,9 @@ func TestEncodeDecode(t *testing.T) {
 		}
 
 		test(t, req, func(req *Request) {
-			req.Header.Ignored = 0 // it will be ignored in decoded value
-			req.Header.alsoIgnored = 0
+			req.Header.TagIgnored = 0        // it will be ignored in decoded value
+			req.Header.InterfaceIgnore = nil // it will be ignored in decoded value
+			req.Header.privateIgnored = 0
 		})
 	})
 }
@@ -171,10 +173,10 @@ func BenchmarkEncodeDecode(b *testing.B) {
 				{Len: 4, Data: "hell"},
 				{Len: 3, Data: "hel"},
 			}},
-			ShitSize: 10,
-			Shit:     []byte("1234567890"),
-			Array:    [4]byte{12, 42, 1, 0},
-			Ignored:  64,
+			ShitSize:   10,
+			Shit:       []byte("1234567890"),
+			Array:      [4]byte{12, 42, 1, 0},
+			TagIgnored: 64,
 		},
 		Custom: Custom{
 			Optional: ptr(124.5),
@@ -198,18 +200,19 @@ type Request struct {
 }
 
 type Header struct {
-	Version       byte
-	CorrelationID int32
-	ClientID      String
-	Numerics      Numerics
-	Bool          bool
-	ServerNames   Slice[String]
-	ShitSize      uint64 `sbin:"lenof:Shit"`
-	Shit          []byte
-	Array         [4]byte
-	Ignored       int64 `sbin:"-"`
-	alsoIgnored   int64
-	Pointer       *Inner
+	Version         byte
+	CorrelationID   int32
+	ClientID        String
+	Numerics        Numerics
+	Bool            bool
+	ServerNames     Slice[String]
+	ShitSize        uint64 `sbin:"lenof:Shit"`
+	Shit            []byte
+	Array           [4]byte
+	Pointer         *Inner
+	TagIgnored      int64 `sbin:"-"`
+	InterfaceIgnore any
+	privateIgnored  int64
 }
 
 type Numerics struct {

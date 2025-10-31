@@ -34,7 +34,7 @@ func NewDecoder(r io.Reader) *Decoder {
 // Decode decodes obj. For numberic fields it uses provided byte order.
 // It can be called multiple times.
 //
-// Currently only slices, arrays, strings, numeric types (including bools) and structures are supported.
+// Currently only slices, arrays, strings, numeric types (including bools), structures and pointers are supported.
 // For other types and any custom logic you can implement [CustomEncoder] and [CustomDecoder].
 //
 // Pointers treated as just values. Nil pointer will be encoded as if it was
@@ -213,9 +213,6 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 		val.Set(reflect.New(val.Type().Elem()))
 
 		return decode(val.Elem(), from, order, size)
-
-	case reflect.Interface:
-		// ignored
 	}
 
 	return nil

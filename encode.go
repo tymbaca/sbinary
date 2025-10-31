@@ -140,9 +140,6 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 		}
 
 		return encode(val.Elem(), into, order)
-
-	case reflect.Interface:
-		// ignored
 	}
 
 	return nil
