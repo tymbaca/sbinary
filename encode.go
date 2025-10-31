@@ -133,6 +133,16 @@ func encode(val reflect.Value, into io.Writer, order binary.ByteOrder) error {
 		}
 
 		return nil
+
+	case reflect.Pointer:
+		if val.IsNil() {
+			val = reflect.New(val.Type().Elem())
+		}
+
+		return encode(val.Elem(), into, order)
+
+	case reflect.Interface:
+		// ignored
 	}
 
 	return nil

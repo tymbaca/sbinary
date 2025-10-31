@@ -37,8 +37,12 @@ func NewDecoder(r io.Reader) *Decoder {
 // Currently only slices, arrays, strings, numeric types (including bools) and structures are supported.
 // For other types and any custom logic you can implement [CustomEncoder] and [CustomDecoder].
 //
+// Pointers treated as just values. Nil pointer will be encoded as if it was
+// valid pointer to zero-value (e.g. *int64 will be encoded as just int64(0)).
+// When decoding, a new value will be allocated on the heap and filled with incoming data.
+//
 // Use of int and uint types are not recommended, because the sending and receiving machines can
-// have different architecture (32 or 64 bit). Better use fixed-bit types, like uin32, int64, etc.
+// have different architecture (32 or 64 bit). Use fixed-siz types like uin32, int64, etc.
 //
 // When decoding slices or strings, there must be another integer field (any signed or
 // unsigned type) before slice field with tag `sbin:"lenof:<TargetField>"`, otherwise
@@ -58,6 +62,9 @@ func NewDecoder(r io.Reader) *Decoder {
 //		Len  uint32 `sbin:"lenof:Data"`
 //		Data []T
 //	}
+//
+// Filling the length field on the encoder side is the called responsibility. Both length and data fields will be
+// encoded as-is, e.g. when encoding `String{Len: 3, Data: "4444"}` will be encoded as `encode(3) + encode("4444")`.
 //
 // For slices, if length field is zero, then the data field will be set to zero-length slice (not nil).
 func (d *Decoder) Decode(obj any, order binary.ByteOrder) error {
@@ -202,8 +209,13 @@ func decode(val reflect.Value, from io.Reader, order binary.ByteOrder, size *int
 			}
 		}
 
-	default:
-		// ignore
+	case reflect.Pointer:
+		val.Set(reflect.New(val.Type().Elem()))
+
+		return decode(val.Elem(), from, order, size)
+
+	case reflect.Interface:
+		// ignored
 	}
 
 	return nil
@@ -231,6 +243,8 @@ func sizeOfAnotherField(val reflect.Value, tag string) (string, int, bool) {
 		size = int(val.Int())
 	case val.CanUint():
 		size = int(val.Uint())
+	case val.Kind() == reflect.Pointer: // so sizes could be specified as pointers, e.g. *int64 or event *****int64
+		return sizeOfAnotherField(val.Elem(), tag)
 	default:
 		return "", 0, false
 	}

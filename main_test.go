@@ -31,6 +31,22 @@ func TestEncodeDecode(t *testing.T) {
 		test(t, Custom{Optional: ptr(777.0)}, nil)
 		test(t, Custom{Optional: nil}, nil)
 	})
+	t.Run("pointer", func(t *testing.T) {
+		test(t, PtrWrapper{
+			PtrStruct:   &Inner{Val: 10},
+			PtrSliceLen: ptr[int64](3),
+			PtrSlice:    &[]*int64{ptr[int64](1), ptr[int64](2), ptr[int64](3)},
+		}, nil)
+		test(t, PtrWrapper{
+			PtrStruct:   nil,
+			PtrSliceLen: nil,
+			PtrSlice:    nil,
+		}, func(v *PtrWrapper) {
+			v.PtrStruct = new(Inner)
+			v.PtrSliceLen = new(int64)
+			v.PtrSlice = &[]*int64{}
+		})
+	})
 	t.Run("numeric", func(t *testing.T) {
 		test(t, Numerics{
 			Int:   -1,
@@ -108,12 +124,12 @@ func TestEncodeDecode(t *testing.T) {
 					{Len: 4, Data: "hell"},
 					{Len: 3, Data: "hel"},
 				}},
-				ShitSize:     10,
-				Shit:         []byte("1234567890"),
-				Array:        [4]byte{12, 42, 1, 0},
-				Ignored:      111,
-				alsoIgnored:  222,
-				alsoIgnored2: &Inner{Val: 20},
+				ShitSize:    10,
+				Shit:        []byte("1234567890"),
+				Array:       [4]byte{12, 42, 1, 0},
+				Ignored:     111,
+				alsoIgnored: 222,
+				Pointer:     &Inner{Val: 20},
 			},
 			CustomInt: varint.Int32(777),
 			Custom: Custom{
@@ -124,7 +140,6 @@ func TestEncodeDecode(t *testing.T) {
 		test(t, req, func(req *Request) {
 			req.Header.Ignored = 0 // it will be ignored in decoded value
 			req.Header.alsoIgnored = 0
-			req.Header.alsoIgnored2 = nil
 		})
 	})
 }
@@ -194,7 +209,7 @@ type Header struct {
 	Array         [4]byte
 	Ignored       int64 `sbin:"-"`
 	alsoIgnored   int64
-	alsoIgnored2  *Inner
+	Pointer       *Inner
 }
 
 type Numerics struct {
@@ -210,6 +225,12 @@ type Numerics struct {
 	Uint64  uint64
 	Float32 float32
 	Float64 float64
+}
+
+type PtrWrapper struct {
+	PtrStruct   *Inner
+	PtrSliceLen *int64 `sbin:"lenof:PtrSlice"`
+	PtrSlice    *[]*int64
 }
 
 type Inner struct {
